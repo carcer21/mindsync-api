@@ -7,6 +7,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
+import java.util.UUID;
 
 @Component
 class UserPersistenceAdapter implements UserRepositoryPort {
@@ -25,6 +26,11 @@ class UserPersistenceAdapter implements UserRepositoryPort {
 			// The UNIQUE constraint is the real guard against concurrent registrations.
 			throw new EmailAlreadyExistsException();
 		}
+	}
+
+	@Override
+	public Optional<User> findById(UUID id) {
+		return repository.findById(id).map(UserMapper::toDomain);
 	}
 
 	@Override

@@ -30,6 +30,14 @@ class UserPersistenceAdapterTest {
 	}
 
 	@Test
+	void findById_returnsStoredUser_andEmptyWhenUnknown() {
+		User saved = adapter.save(User.register("Dana", "dana@example.com", "hash-5"));
+
+		assertThat(adapter.findById(saved.id())).contains(saved);
+		assertThat(adapter.findById(java.util.UUID.randomUUID())).isEmpty();
+	}
+
+	@Test
 	void findByEmail_returnsEmptyWhenUnknown() {
 		assertThat(adapter.findByEmail("nobody@example.com")).isEmpty();
 	}
