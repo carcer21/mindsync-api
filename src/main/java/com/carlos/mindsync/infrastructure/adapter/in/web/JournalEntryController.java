@@ -5,6 +5,8 @@ import com.carlos.mindsync.application.port.in.DeleteEntryUseCase;
 import com.carlos.mindsync.application.port.in.GetEntryUseCase;
 import com.carlos.mindsync.application.port.in.ListEntriesUseCase;
 import com.carlos.mindsync.domain.model.JournalEntry;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +26,7 @@ import java.net.URI;
 import java.util.UUID;
 
 // Every method takes the owner from the validated token, never from the request.
+@Tag(name = "Journal entries", description = "Always the token owner's entries")
 @RestController
 @RequestMapping("/api/entries")
 class JournalEntryController {
@@ -41,6 +44,7 @@ class JournalEntryController {
 		this.deleteEntry = deleteEntry;
 	}
 
+	@Operation(summary = "Create an entry")
 	@PostMapping
 	ResponseEntity<EntryResponse> create(@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody EntryRequest request) {
 		JournalEntry entry = createEntry.create(new CreateEntryUseCase.Command(userId(jwt), request.date(),
@@ -48,17 +52,20 @@ class JournalEntryController {
 		return ResponseEntity.created(URI.create("/api/entries/" + entry.id())).body(EntryResponse.from(entry));
 	}
 
+	@Operation(summary = "List my entries, newest first (paginated)")
 	@GetMapping
 	PageResponse<EntryResponse> list(@AuthenticationPrincipal Jwt jwt,
 			@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "20") int size) {
 		return PageResponse.from(listEntries.list(userId(jwt), page, size), EntryResponse::from);
 	}
 
+	@Operation(summary = "Get one of my entries")
 	@GetMapping("/{id}")
 	EntryResponse get(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
 		return EntryResponse.from(getEntry.get(userId(jwt), id));
 	}
 
+	@Operation(summary = "Delete one of my entries")
 	@DeleteMapping("/{id}")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	void delete(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
