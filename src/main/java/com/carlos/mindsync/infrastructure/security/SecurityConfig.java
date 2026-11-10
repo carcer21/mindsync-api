@@ -9,7 +9,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import static org.springframework.security.config.Customizer.withDefaults;
 
 @Configuration
-class SecurityConfig {
+public class SecurityConfig {
 
 	private static final String[] PUBLIC_PATHS = {
 			"/api/auth/**",
