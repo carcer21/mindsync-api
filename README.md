@@ -254,4 +254,6 @@ Prefiero dejarlas escritas a que parezca que no las he visto:
 
 ## Autor
 
-Carlos — [github.com/carcer21](https://github.com/carcer21)
+Carlos Cervera — [github.com/carcer21](https://github.com/carcer21)
+Linkedin - https://www.linkedin.com/in/carlos-cervera-torres/
+
