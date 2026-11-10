@@ -2,7 +2,9 @@ package com.carlos.mindsync.infrastructure.adapter.in.web;
 
 import com.carlos.mindsync.domain.exception.EmailAlreadyExistsException;
 import com.carlos.mindsync.domain.exception.InvalidCredentialsException;
+import com.carlos.mindsync.domain.exception.InvalidJournalEntryException;
 import com.carlos.mindsync.domain.exception.InvalidUserException;
+import com.carlos.mindsync.domain.exception.JournalEntryNotFoundException;
 import com.carlos.mindsync.domain.exception.UserNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,8 +20,8 @@ class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
 	private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-	@ExceptionHandler(InvalidUserException.class)
-	ProblemDetail handleInvalidUser(InvalidUserException e) {
+	@ExceptionHandler({InvalidUserException.class, InvalidJournalEntryException.class})
+	ProblemDetail handleInvalidData(RuntimeException e) {
 		return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
 	}
 
@@ -33,8 +35,8 @@ class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 		return ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, e.getMessage());
 	}
 
-	@ExceptionHandler(UserNotFoundException.class)
-	ProblemDetail handleUserNotFound(UserNotFoundException e) {
+	@ExceptionHandler({UserNotFoundException.class, JournalEntryNotFoundException.class})
+	ProblemDetail handleNotFound(RuntimeException e) {
 		return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
 	}
 
