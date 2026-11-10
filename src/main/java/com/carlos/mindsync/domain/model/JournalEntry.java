@@ -9,12 +9,11 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
 
-public record JournalEntry(UUID id, UUID userId, LocalDate date, int energy, String emotion,
+public record JournalEntry(UUID id, UUID userId, LocalDate date, int energy, Emotion emotion,
 		String notes, Set<String> tags) {
 
 	static final int ENERGY_MIN = 1;
 	static final int ENERGY_MAX = 10;
-	static final int EMOTION_MAX_LENGTH = 50;
 	static final int NOTES_MAX_LENGTH = 2000;
 	static final int MAX_TAGS = 10;
 	static final int TAG_MAX_LENGTH = 30;
@@ -33,13 +32,8 @@ public record JournalEntry(UUID id, UUID userId, LocalDate date, int energy, Str
 			throw new InvalidJournalEntryException(
 					"energy must be between " + ENERGY_MIN + " and " + ENERGY_MAX);
 		}
-		if (emotion == null || emotion.isBlank()) {
+		if (emotion == null) {
 			throw new InvalidJournalEntryException("emotion is required");
-		}
-		emotion = emotion.trim();
-		if (emotion.length() > EMOTION_MAX_LENGTH) {
-			throw new InvalidJournalEntryException(
-					"emotion must be at most " + EMOTION_MAX_LENGTH + " characters");
 		}
 		// Notes are optional; blank means "no notes".
 		notes = (notes == null || notes.isBlank()) ? null : notes.strip();
@@ -50,7 +44,7 @@ public record JournalEntry(UUID id, UUID userId, LocalDate date, int energy, Str
 		tags = normalizeTags(tags);
 	}
 
-	public static JournalEntry create(UUID userId, LocalDate date, int energy, String emotion,
+	public static JournalEntry create(UUID userId, LocalDate date, int energy, Emotion emotion,
 			String notes, Collection<String> tags) {
 		return new JournalEntry(UUID.randomUUID(), userId, date, energy, emotion, notes,
 				tags == null ? null : new LinkedHashSet<>(tags));
