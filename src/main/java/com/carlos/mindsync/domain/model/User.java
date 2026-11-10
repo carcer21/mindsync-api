@@ -26,7 +26,7 @@ public record User(UUID id, String name, String email, String passwordHash) {
 		if (email == null || email.isBlank()) {
 			throw new InvalidUserException("email is required");
 		}
-		email = email.trim().toLowerCase(Locale.ROOT);
+		email = normalizeEmail(email);
 		if (email.length() > EMAIL_MAX_LENGTH || !EMAIL.matcher(email).matches()) {
 			throw new InvalidUserException("email is not valid");
 		}
@@ -37,6 +37,10 @@ public record User(UUID id, String name, String email, String passwordHash) {
 
 	public static User register(String name, String email, String passwordHash) {
 		return new User(UUID.randomUUID(), name, email, passwordHash);
+	}
+
+	public static String normalizeEmail(String email) {
+		return email.trim().toLowerCase(Locale.ROOT);
 	}
 
 	// Records print every field by default; never leak the hash into logs.
