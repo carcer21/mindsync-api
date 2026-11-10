@@ -1,0 +1,4 @@
+# No datasource here: Testcontainers (@ServiceConnection) provides a throwaway PostgreSQL.
+logging:
+  level:
+    com.carlos.mindsync: INFO
