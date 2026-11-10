@@ -1,4 +1,9 @@
 # No datasource here: Testcontainers (@ServiceConnection) provides a throwaway PostgreSQL.
+# No real secret either: a random signing key is generated for each test run.
+app:
+  jwt:
+    secret: ${random.value}
+
 logging:
   level:
     com.carlos.mindsync: INFO
