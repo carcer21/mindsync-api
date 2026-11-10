@@ -37,5 +37,16 @@ jobs:
 
       # No secrets needed: tests use their own PostgreSQL (Testcontainers, Docker is preinstalled
       # on the runner), a random JWT secret and no Gemini key.
+      # verify also runs JaCoCo: the build fails if domain/application coverage drops below 90%.
       - name: Build and run all tests
         run: ./mvnw --batch-mode --no-transfer-progress verify
+
+      # Kept even when the build fails, so the report can explain why.
+      - name: Upload the coverage report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: jacoco-report
+          path: target/site/jacoco
+          retention-days: 14
+          if-no-files-found: ignore
