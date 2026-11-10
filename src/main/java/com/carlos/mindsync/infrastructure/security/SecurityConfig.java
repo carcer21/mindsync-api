@@ -27,7 +27,9 @@ public class SecurityConfig {
 						.requestMatchers(PUBLIC_PATHS).permitAll()
 						.anyRequest().authenticated())
 				// Validates the "Authorization: Bearer <token>" header with the JwtDecoder bean.
-				.oauth2ResourceServer(oauth2 -> oauth2.jwt(withDefaults()))
+				.oauth2ResourceServer(oauth2 -> oauth2
+						.jwt(withDefaults())
+						.authenticationEntryPoint(new ProblemDetailAuthenticationEntryPoint()))
 				.build();
 	}
 }
