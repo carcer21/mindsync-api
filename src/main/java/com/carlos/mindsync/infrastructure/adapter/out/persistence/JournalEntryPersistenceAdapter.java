@@ -7,6 +7,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -37,6 +39,12 @@ class JournalEntryPersistenceAdapter implements JournalEntryRepositoryPort {
 		var result = repository.findByUserId(userId, PageRequest.of(page, size, NEWEST_FIRST));
 		return new Page<>(result.map(JournalEntryMapper::toDomain).getContent(), page, size,
 				result.getTotalElements());
+	}
+
+	@Override
+	public List<JournalEntry> findByUserIdSince(UUID userId, LocalDate since, int maxResults) {
+		return repository.findByUserIdAndDateGreaterThanEqual(userId, since, PageRequest.of(0, maxResults, NEWEST_FIRST))
+				.stream().map(JournalEntryMapper::toDomain).toList();
 	}
 
 	@Override

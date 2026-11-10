@@ -133,6 +133,39 @@ class JournalEntryPersistenceAdapterTest {
 	}
 
 	@Test
+	void findSince_returnsOnlyOwnEntriesFromTheLimitDate_newestFirst() {
+		JournalEntry old = saved(ana, DAY.minusDays(10));
+		JournalEntry onLimit = saved(ana, DAY.minusDays(5));
+		JournalEntry recent = saved(ana, DAY);
+		saved(ben, DAY);
+		flushAndClear();
+
+		List<JournalEntry> found = adapter.findByUserIdSince(ana, DAY.minusDays(5), 100);
+
+		assertThat(found).containsExactly(recent, onLimit);
+		assertThat(found).doesNotContain(old);
+		assertThat(found).allSatisfy(e -> assertThat(e.tags()).containsExactlyInAnyOrder("work", "family"));
+	}
+
+	@Test
+	void findSince_respectsTheMaximumNumberOfResults_keepingTheNewest() {
+		for (int i = 0; i < 5; i++) {
+			saved(ana, DAY.minusDays(i));
+		}
+		flushAndClear();
+
+		assertThat(adapter.findByUserIdSince(ana, DAY.minusDays(30), 2)).extracting(JournalEntry::date)
+				.containsExactly(DAY, DAY.minusDays(1));
+	}
+
+	@Test
+	void findSince_userWithoutEntries_isEmpty() {
+		saved(ana, DAY);
+
+		assertThat(adapter.findByUserIdSince(ben, DAY.minusDays(30), 100)).isEmpty();
+	}
+
+	@Test
 	void delete_byOwner_removesEntryAndItsTags() {
 		JournalEntry entry = saved(ana, DAY);
 		flushAndClear();

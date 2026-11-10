@@ -4,6 +4,7 @@ import com.carlos.mindsync.application.port.in.CreateEntryUseCase;
 import com.carlos.mindsync.application.port.in.DeleteEntryUseCase;
 import com.carlos.mindsync.application.port.in.GetAdviceUseCase;
 import com.carlos.mindsync.application.port.in.GetEntryUseCase;
+import com.carlos.mindsync.application.port.in.GetStatsUseCase;
 import com.carlos.mindsync.application.port.in.GetUserUseCase;
 import com.carlos.mindsync.application.port.in.ListEntriesUseCase;
 import com.carlos.mindsync.application.port.in.LoginUseCase;
@@ -17,6 +18,7 @@ import com.carlos.mindsync.application.service.CreateEntryService;
 import com.carlos.mindsync.application.service.DeleteEntryService;
 import com.carlos.mindsync.application.service.GetAdviceService;
 import com.carlos.mindsync.application.service.GetEntryService;
+import com.carlos.mindsync.application.service.GetStatsService;
 import com.carlos.mindsync.application.service.GetUserService;
 import com.carlos.mindsync.application.service.ListEntriesService;
 import com.carlos.mindsync.application.service.LoginService;
@@ -69,5 +71,10 @@ class UseCaseConfig {
 	@Bean
 	GetAdviceUseCase getAdviceUseCase(JournalEntryRepositoryPort entries, AiAdvisorPort advisor) {
 		return new GetAdviceService(entries, advisor);
+	}
+
+	@Bean
+	GetStatsUseCase getStatsUseCase(JournalEntryRepositoryPort entries) {
+		return new GetStatsService(entries, Clock.systemUTC());
 	}
 }
