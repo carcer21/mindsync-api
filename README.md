@@ -248,6 +248,10 @@ Prefiero dejarlas escritas a que parezca que no las he visto:
 - Edición de entradas, borrado de cuenta y filtros en el listado.
 - Cliente Android.
 
+## Licencia
+
+[MIT](LICENSE).
+
 ## Autor
 
 Carlos — [github.com/carcer21](https://github.com/carcer21)
