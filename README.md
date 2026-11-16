@@ -135,13 +135,15 @@ Emociones admitidas: `JOY`, `CALM`, `GRATITUDE`, `NEUTRAL`, `SADNESS`, `ANXIETY`
 
 Los errores usan siempre el formato estándar `application/problem+json` (RFC 9457); los de validación indican qué campo falla.
 
+Login y registro admiten 10 peticiones por minuto y por IP; el consejo de IA, 5 por minuto y por usuario. Al superarlo se responde `429 Too Many Requests` con la cabecera `Retry-After`.
+
 ## Tests
 
 ```bash
 ./mvnw verify
 ```
 
-- **283 tests**: unitarios (dominio y servicios), de capa (`@WebMvcTest`, `@DataJpaTest`), de integración con la aplicación completa y de arquitectura.
+- **292 tests**: unitarios (dominio y servicios), de capa (`@WebMvcTest`, `@DataJpaTest`), de integración con la aplicación completa y de arquitectura.
 - **La arquitectura también se prueba** (ArchUnit): `domain` solo puede depender de sí mismo y del JDK; `application`, además, de `domain`. Un `import` de Spring o de `infrastructure` en el núcleo rompe el build.
 - La base de datos de los tests es un **PostgreSQL real** en Docker (Testcontainers), no H2.
 - Gemini se sustituye por un servidor HTTP falso o un mock.
@@ -182,6 +184,7 @@ Esta es la parte más importante del proyecto. Audité el backend original de mi
 - JWT firmado con HS256, algoritmo fijado, emisor y caducidad (30 min) validados. Tests con token caducado, con firma falsa y con `alg: none`.
 - Contraseñas con BCrypt; mínimo 8 caracteres y máximo 72 bytes (límite real de BCrypt).
 - Mismo `401` y mismo mensaje para email desconocido y contraseña incorrecta.
+- Límite de intentos por IP en login y registro, para frenar la fuerza bruta. La IP es la de la conexión: un test comprueba que falsificar `X-Forwarded-For` no da un contador nuevo.
 
 ### API3 · Exposición excesiva de datos
 
@@ -197,7 +200,7 @@ Esta es la parte más importante del proyecto. Audité el backend original de mi
 
 **v1.** Listados sin paginación; a Gemini se enviaban **todas** las entradas del usuario; se creaba un `RestTemplate` nuevo en cada llamada, sin timeouts.
 
-**v2.** Paginación con máximo de 50 por página; a la IA van solo las últimas 14 entradas; las estadísticas leen como mucho 90 días y 1000 filas; un `RestClient` reutilizable con timeouts de conexión y lectura; límites de tamaño en notas y etiquetas.
+**v2.** Paginación con máximo de 50 por página; a la IA van solo las últimas 14 entradas; las estadísticas leen como mucho 90 días y 1000 filas; un `RestClient` reutilizable con timeouts de conexión y lectura; límites de tamaño en notas y etiquetas; **límite de peticiones** (`429` + `Retry-After`) en login, registro y consejo de IA, que es la llamada que cuesta dinero.
 
 ### API5 · Autorización a nivel de función rota
 
@@ -234,7 +237,7 @@ Esta es la parte más importante del proyecto. Audité el backend original de mi
 
 Prefiero dejarlas escritas a que parezca que no las he visto:
 
-- **Sin límite de peticiones (rate limiting).** No hay freno a la fuerza bruta contra el login ni a las llamadas repetidas a `/api/ai/advice`, que tienen coste. Es el punto de API4 que queda abierto.
+- **El límite de peticiones es sencillo y vive en memoria.** Los contadores se pierden al reiniciar y no se comparten entre instancias: con más de una haría falta Redis o un gateway. Detrás de un proxy inverso todos los clientes llegarían con la misma IP (habría que configurar los proxies de confianza). Al ser de ventana fija permite una ráfaga de hasta el doble justo en el cambio de ventana. Y al contar por IP no frena un ataque repartido entre muchas IP contra una misma cuenta.
 - **Sin refresh token ni revocación.** Un token robado vale hasta que caduca (30 min).
 - **Swagger UI y `/v3/api-docs` son públicos.** Cómodo para una demo; en producción habría que desactivarlos (`springdoc.api-docs.enabled=false`, `springdoc.swagger-ui.enabled=false`) o protegerlos.
 - **Las notas se guardan sin cifrar** en la base de datos.
@@ -244,7 +247,6 @@ Prefiero dejarlas escritas a que parezca que no las he visto:
 
 ## Próximos pasos
 
-- Rate limiting en login e IA.
 - Edición de entradas, borrado de cuenta y filtros en el listado.
 - Cliente Android.
 

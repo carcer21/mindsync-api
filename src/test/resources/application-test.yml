@@ -3,6 +3,13 @@
 app:
   jwt:
     secret: ${random.value}
+  # Every test calls from 127.0.0.1 and contexts are reused between classes: the real limits would make
+  # unrelated tests fail with 429. RateLimitTest sets its own low limits.
+  rate-limit:
+    auth:
+      limit: 1000000
+    ai:
+      limit: 1000000
 
 logging:
   level:

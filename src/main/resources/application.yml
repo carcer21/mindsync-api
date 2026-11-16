@@ -22,6 +22,15 @@ app:
     base-url: https://generativelanguage.googleapis.com
     connect-timeout: 3s
     read-timeout: 15s
+  rate-limit:
+    # Per client IP, login and register together: slows down password guessing.
+    auth:
+      limit: 10
+      window: 1m
+    # Per authenticated user: every call is a paid request to Gemini.
+    ai:
+      limit: 5
+      window: 1m
 
 management:
   endpoints:

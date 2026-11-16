@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.jwt.BadJwtException;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -37,6 +38,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 // One error contract for the whole API: every error is application/problem+json.
 @WebMvcTest({AuthController.class, JournalEntryController.class})
 @Import(SecurityConfig.class)
+@ActiveProfiles("test")
 class ErrorResponsesTest {
 
 	private static final String SECRET_PASSWORD = "pw-1234";
