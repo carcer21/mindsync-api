@@ -124,6 +124,14 @@
 			<artifactId>testcontainers-postgresql</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<!-- Spring Boot 4.1.2 ships JUnit 6.0.3; ArchUnit supports JUnit 6 through this artifact since 1.5.0
+		     (checked in its release notes). 1.5.1 is the latest on Maven Central. -->
+		<dependency>
+			<groupId>com.tngtech.archunit</groupId>
+			<artifactId>archunit-junit6</artifactId>
+			<version>1.5.1</version>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>

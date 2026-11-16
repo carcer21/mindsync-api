@@ -16,7 +16,7 @@ Este repositorio es la **segunda versión** del backend de mi Trabajo de Fin de 
 | Seguridad | Spring Security, JWT (OAuth2 Resource Server, HS256), BCrypt |
 | Datos | PostgreSQL 18, Spring Data JPA, Flyway |
 | IA | Google Gemini mediante `RestClient` |
-| Tests | JUnit 5, Mockito, AssertJ, Testcontainers, MockMvc |
+| Tests | JUnit, Mockito, AssertJ, Testcontainers, MockMvc, ArchUnit |
 | Calidad | GitHub Actions, JaCoCo, OpenAPI / Swagger UI |
 
 ## Arquitectura hexagonal
@@ -141,7 +141,8 @@ Los errores usan siempre el formato estándar `application/problem+json` (RFC 94
 ./mvnw verify
 ```
 
-- **281 tests**: unitarios (dominio y servicios), de capa (`@WebMvcTest`, `@DataJpaTest`) y de integración con la aplicación completa.
+- **283 tests**: unitarios (dominio y servicios), de capa (`@WebMvcTest`, `@DataJpaTest`), de integración con la aplicación completa y de arquitectura.
+- **La arquitectura también se prueba** (ArchUnit): `domain` solo puede depender de sí mismo y del JDK; `application`, además, de `domain`. Un `import` de Spring o de `infrastructure` en el núcleo rompe el build.
 - La base de datos de los tests es un **PostgreSQL real** en Docker (Testcontainers), no H2.
 - Gemini se sustituye por un servidor HTTP falso o un mock.
 - **Cobertura**: 100 % de líneas y ramas en `domain` y `application`. El build falla si baja del 90 %. Informe en `target/site/jacoco/index.html`.
@@ -244,7 +245,6 @@ Prefiero dejarlas escritas a que parezca que no las he visto:
 ## Próximos pasos
 
 - Rate limiting en login e IA.
-- Test de arquitectura (ArchUnit) que impida que el dominio dependa de Spring.
 - Edición de entradas, borrado de cuenta y filtros en el listado.
 - Cliente Android.
 
