@@ -53,7 +53,7 @@ class OpenApiDocsIntegrationTest {
 		assertThat(JsonPath.<Map<String, Object>>read(docs(), "$.paths['/api/entries']").keySet())
 				.containsExactlyInAnyOrder("get", "post");
 		assertThat(JsonPath.<Map<String, Object>>read(docs(), "$.paths['/api/entries/{id}']").keySet())
-				.containsExactlyInAnyOrder("get", "delete");
+				.containsExactlyInAnyOrder("get", "put", "delete");
 	}
 
 	@Test

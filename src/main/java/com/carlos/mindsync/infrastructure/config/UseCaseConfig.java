@@ -9,6 +9,7 @@ import com.carlos.mindsync.application.port.in.GetUserUseCase;
 import com.carlos.mindsync.application.port.in.ListEntriesUseCase;
 import com.carlos.mindsync.application.port.in.LoginUseCase;
 import com.carlos.mindsync.application.port.in.RegisterUserUseCase;
+import com.carlos.mindsync.application.port.in.UpdateEntryUseCase;
 import com.carlos.mindsync.application.port.out.AiAdvisorPort;
 import com.carlos.mindsync.application.port.out.JournalEntryRepositoryPort;
 import com.carlos.mindsync.application.port.out.PasswordHasherPort;
@@ -23,6 +24,7 @@ import com.carlos.mindsync.application.service.GetUserService;
 import com.carlos.mindsync.application.service.ListEntriesService;
 import com.carlos.mindsync.application.service.LoginService;
 import com.carlos.mindsync.application.service.RegisterUserService;
+import com.carlos.mindsync.application.service.UpdateEntryService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -61,6 +63,11 @@ class UseCaseConfig {
 	@Bean
 	GetEntryUseCase getEntryUseCase(JournalEntryRepositoryPort entries) {
 		return new GetEntryService(entries);
+	}
+
+	@Bean
+	UpdateEntryUseCase updateEntryUseCase(JournalEntryRepositoryPort entries) {
+		return new UpdateEntryService(entries, Clock.systemUTC());
 	}
 
 	@Bean

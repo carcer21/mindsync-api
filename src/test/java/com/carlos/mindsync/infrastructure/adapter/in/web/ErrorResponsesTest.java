@@ -4,6 +4,7 @@ import com.carlos.mindsync.application.port.in.CreateEntryUseCase;
 import com.carlos.mindsync.application.port.in.DeleteEntryUseCase;
 import com.carlos.mindsync.application.port.in.GetEntryUseCase;
 import com.carlos.mindsync.application.port.in.ListEntriesUseCase;
+import com.carlos.mindsync.application.port.in.UpdateEntryUseCase;
 import com.carlos.mindsync.application.port.in.LoginUseCase;
 import com.carlos.mindsync.application.port.in.RegisterUserUseCase;
 import com.carlos.mindsync.infrastructure.security.SecurityConfig;
@@ -58,6 +59,8 @@ class ErrorResponsesTest {
 	private GetEntryUseCase getEntry;
 	@MockitoBean
 	private DeleteEntryUseCase deleteEntry;
+	@MockitoBean
+	private UpdateEntryUseCase updateEntry;
 	@MockitoBean
 	private JwtDecoder jwtDecoder;
 

@@ -4,6 +4,7 @@ import com.carlos.mindsync.application.port.in.CreateEntryUseCase;
 import com.carlos.mindsync.application.port.in.DeleteEntryUseCase;
 import com.carlos.mindsync.application.port.in.GetEntryUseCase;
 import com.carlos.mindsync.application.port.in.ListEntriesUseCase;
+import com.carlos.mindsync.application.port.in.UpdateEntryUseCase;
 import com.carlos.mindsync.domain.model.JournalEntry;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -34,13 +36,15 @@ class JournalEntryController {
 	private final CreateEntryUseCase createEntry;
 	private final ListEntriesUseCase listEntries;
 	private final GetEntryUseCase getEntry;
+	private final UpdateEntryUseCase updateEntry;
 	private final DeleteEntryUseCase deleteEntry;
 
 	JournalEntryController(CreateEntryUseCase createEntry, ListEntriesUseCase listEntries,
-			GetEntryUseCase getEntry, DeleteEntryUseCase deleteEntry) {
+			GetEntryUseCase getEntry, UpdateEntryUseCase updateEntry, DeleteEntryUseCase deleteEntry) {
 		this.createEntry = createEntry;
 		this.listEntries = listEntries;
 		this.getEntry = getEntry;
+		this.updateEntry = updateEntry;
 		this.deleteEntry = deleteEntry;
 	}
 
@@ -63,6 +67,14 @@ class JournalEntryController {
 	@GetMapping("/{id}")
 	EntryResponse get(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id) {
 		return EntryResponse.from(getEntry.get(userId(jwt), id));
+	}
+
+	@Operation(summary = "Replace one of my entries")
+	@PutMapping("/{id}")
+	EntryResponse update(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID id,
+			@Valid @RequestBody EntryRequest request) {
+		return EntryResponse.from(updateEntry.update(id, new CreateEntryUseCase.Command(userId(jwt), request.date(),
+				request.energy(), request.emotion(), request.notes(), request.tags())));
 	}
 
 	@Operation(summary = "Delete one of my entries")

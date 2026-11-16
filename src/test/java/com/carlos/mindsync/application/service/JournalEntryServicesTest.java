@@ -46,6 +46,7 @@ class JournalEntryServicesTest {
 	private ListEntriesService list;
 	private GetEntryService get;
 	private DeleteEntryService delete;
+	private UpdateEntryService update;
 
 	@BeforeEach
 	void setUp() {
@@ -53,6 +54,7 @@ class JournalEntryServicesTest {
 		list = new ListEntriesService(entries);
 		get = new GetEntryService(entries);
 		delete = new DeleteEntryService(entries);
+		update = new UpdateEntryService(entries, CLOCK);
 	}
 
 	private static CreateEntryUseCase.Command command(LocalDate date) {
@@ -136,6 +138,45 @@ class JournalEntryServicesTest {
 		assertThatThrownBy(() -> get.get(OTHER, id))
 				.isInstanceOf(JournalEntryNotFoundException.class)
 				.hasMessage("journal entry not found");
+	}
+
+	// ---- update
+
+	@Test
+	void update_replacesTheFields_keepingIdAndOwner() {
+		JournalEntry existing = JournalEntry.create(OWNER, TODAY.minusDays(3), 2, Emotion.SADNESS, "old", Set.of("old"));
+		when(entries.findByIdAndUserId(existing.id(), OWNER)).thenReturn(Optional.of(existing));
+		when(entries.save(any())).thenAnswer(i -> i.getArgument(0));
+
+		JournalEntry updated = update.update(existing.id(), command(TODAY));
+
+		assertThat(updated).isEqualTo(new JournalEntry(existing.id(), OWNER, TODAY, 6, Emotion.CALM, "note", Set.of("work")));
+		verify(entries).save(updated);
+	}
+
+	@Test
+	void update_entryOfAnotherUser_looksLikeMissing_andNothingIsSaved() {
+		UUID foreignId = UUID.randomUUID();
+		when(entries.findByIdAndUserId(foreignId, OWNER)).thenReturn(Optional.empty());
+
+		assertThatThrownBy(() -> update.update(foreignId, command(TODAY)))
+				.isInstanceOf(JournalEntryNotFoundException.class)
+				.hasMessage("journal entry not found");
+		verify(entries, never()).save(any());
+	}
+
+	@Test
+	void update_rejectsDatesBeyondTomorrow_andInvalidData_withoutSaving() {
+		JournalEntry existing = JournalEntry.create(OWNER, TODAY, 5, Emotion.JOY, null, null);
+		when(entries.findByIdAndUserId(existing.id(), OWNER)).thenReturn(Optional.of(existing));
+		var badEnergy = new CreateEntryUseCase.Command(OWNER, TODAY, 11, Emotion.CALM, null, null);
+
+		assertThatThrownBy(() -> update.update(existing.id(), command(TODAY.plusDays(2))))
+				.isInstanceOf(InvalidJournalEntryException.class)
+				.hasMessageContaining("future");
+		assertThatThrownBy(() -> update.update(existing.id(), badEnergy))
+				.isInstanceOf(InvalidJournalEntryException.class);
+		verify(entries, never()).save(any());
 	}
 
 	// ---- delete

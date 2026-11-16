@@ -22,6 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -105,7 +106,77 @@ class JournalEntryFlowIntegrationTest {
 				.andExpect(jsonPath("$.size").value(50));
 	}
 
+	@Test
+	void update_replacesEveryField_andItsTags() throws Exception {
+		Session ana = newUser("Ana");
+		String id = createAndGetId(ana, entryJson(TODAY, 3, "SADNESS", "invented note", "\"work\",\"family\""));
+
+		updateEntry(ana, id, entryJson(TODAY.minusDays(1), 8, "JOY", null, "\"rest\""))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(id))
+				.andExpect(jsonPath("$.userId").doesNotExist());
+
+		mockMvc.perform(get("/api/entries/" + id).header("Authorization", bearer(ana)))
+				.andExpect(jsonPath("$.date").value(TODAY.minusDays(1).toString()))
+				.andExpect(jsonPath("$.energy").value(8))
+				.andExpect(jsonPath("$.emotion").value("JOY"))
+				.andExpect(jsonPath("$.notes").doesNotExist())
+				.andExpect(jsonPath("$.tags.length()").value(1))
+				.andExpect(jsonPath("$.tags[0]").value("rest"));
+		// Updated in place: still one entry, and the old tags are gone from the database.
+		assertThat(entryRows(id)).isEqualTo(1);
+		assertThat(tagRows(id)).isEqualTo(1);
+		mockMvc.perform(get("/api/entries").header("Authorization", bearer(ana)))
+				.andExpect(jsonPath("$.totalElements").value(1));
+	}
+
+	@Test
+	void update_missingEntry_returns404_andDoesNotCreateIt() throws Exception {
+		Session ana = newUser("Ana");
+		String id = UUID.randomUUID().toString();
+
+		updateEntry(ana, id, entryJson(TODAY, 5, "CALM", null, "")).andExpect(status().isNotFound());
+
+		assertThat(entryRows(id)).isZero();
+	}
+
+	@Test
+	void update_futureDateOrInvalidEnergy_returns400_andKeepsTheEntry() throws Exception {
+		Session ana = newUser("Ana");
+		String id = createAndGetId(ana, entryJson(TODAY, 3, "SADNESS", "invented note", ""));
+
+		updateEntry(ana, id, entryJson(TODAY.plusDays(5), 5, "CALM", null, "")).andExpect(status().isBadRequest());
+		updateEntry(ana, id, entryJson(TODAY, 11, "CALM", null, "")).andExpect(status().isBadRequest());
+
+		mockMvc.perform(get("/api/entries/" + id).header("Authorization", bearer(ana)))
+				.andExpect(jsonPath("$.energy").value(3))
+				.andExpect(jsonPath("$.notes").value("invented note"));
+	}
+
 	// ---- IDOR / BOLA: one user must never reach another user's entries
+
+	@Test
+	void idor_userCannotUpdateOrTakeOverAnotherUsersEntry() throws Exception {
+		Session ana = newUser("Ana");
+		Session ben = newUser("Ben");
+		String anaEntry = createAndGetId(ana, entryJson(TODAY, 2, "ANXIETY", "private invented note", "\"health\""));
+
+		String body = updateEntry(ben, anaEntry, entryJson(TODAY, 9, "JOY", "overwritten", "\"hacked\""))
+				.andExpect(status().isNotFound())
+				.andReturn().getResponse().getContentAsString();
+
+		assertThat(body).doesNotContain("private invented note");
+		// Still Ana's, and untouched.
+		assertThat(jdbc.queryForObject("select user_id::text from journal_entries where id = ?::uuid", String.class,
+				anaEntry)).isEqualTo(ana.userId());
+		mockMvc.perform(get("/api/entries/" + anaEntry).header("Authorization", bearer(ana)))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.energy").value(2))
+				.andExpect(jsonPath("$.notes").value("private invented note"))
+				.andExpect(jsonPath("$.tags[0]").value("health"));
+		mockMvc.perform(get("/api/entries").header("Authorization", bearer(ben)))
+				.andExpect(jsonPath("$.totalElements").value(0));
+	}
 
 	@Test
 	void idor_userCannotReadAnotherUsersEntry() throws Exception {
@@ -194,6 +265,8 @@ class JournalEntryFlowIntegrationTest {
 		mockMvc.perform(get("/api/entries")).andExpect(status().isUnauthorized());
 		mockMvc.perform(get("/api/entries/" + id)).andExpect(status().isUnauthorized());
 		mockMvc.perform(delete("/api/entries/" + id)).andExpect(status().isUnauthorized());
+		mockMvc.perform(put("/api/entries/" + id).contentType(MediaType.APPLICATION_JSON)
+				.content(entryJson(TODAY, 9, "JOY", null, ""))).andExpect(status().isUnauthorized());
 		mockMvc.perform(post("/api/entries").contentType(MediaType.APPLICATION_JSON)
 				.content(entryJson(TODAY, 5, "CALM", null, ""))).andExpect(status().isUnauthorized());
 		assertThat(entryRows(id)).isEqualTo(1);
@@ -234,6 +307,11 @@ class JournalEntryFlowIntegrationTest {
 
 	private ResultActions createEntry(Session session, String body) throws Exception {
 		return mockMvc.perform(post("/api/entries").header("Authorization", bearer(session))
+				.contentType(MediaType.APPLICATION_JSON).content(body));
+	}
+
+	private ResultActions updateEntry(Session session, String id, String body) throws Exception {
+		return mockMvc.perform(put("/api/entries/" + id).header("Authorization", bearer(session))
 				.contentType(MediaType.APPLICATION_JSON).content(body));
 	}
 

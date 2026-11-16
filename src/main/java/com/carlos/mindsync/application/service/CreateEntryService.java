@@ -22,10 +22,14 @@ public class CreateEntryService implements CreateEntryUseCase {
 	public JournalEntry create(Command command) {
 		JournalEntry entry = JournalEntry.create(command.userId(), command.date(), command.energy(),
 				command.emotion(), command.notes(), command.tags());
-		// One day of tolerance for users in time zones ahead of the server.
+		requireNotInTheFuture(entry, clock);
+		return entries.save(entry);
+	}
+
+	// Shared with UpdateEntryService. One day of tolerance for users in time zones ahead of the server.
+	static void requireNotInTheFuture(JournalEntry entry, Clock clock) {
 		if (entry.date().isAfter(LocalDate.now(clock).plusDays(1))) {
 			throw new InvalidJournalEntryException("date must not be in the future");
 		}
-		return entries.save(entry);
 	}
 }

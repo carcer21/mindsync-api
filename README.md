@@ -112,6 +112,7 @@ docker compose up -d
 | `POST` | `/api/entries` | Sí | Crear una entrada del diario |
 | `GET` | `/api/entries?page=0&size=20` | Sí | Mis entradas, de la más reciente a la más antigua |
 | `GET` | `/api/entries/{id}` | Sí | Una de mis entradas |
+| `PUT` | `/api/entries/{id}` | Sí | Sustituir una de mis entradas (mismo cuerpo que al crearla) |
 | `DELETE` | `/api/entries/{id}` | Sí | Borrar una de mis entradas |
 | `GET` | `/api/stats/me` | Sí | Racha, energía media, emoción predominante y total del mes (últimos 90 días) |
 | `GET` | `/api/ai/advice` | Sí | Análisis de IA de mis últimas 14 entradas |
@@ -143,7 +144,7 @@ Login y registro admiten 10 peticiones por minuto y por IP; el consejo de IA, 5 
 ./mvnw verify
 ```
 
-- **292 tests**: unitarios (dominio y servicios), de capa (`@WebMvcTest`, `@DataJpaTest`), de integración con la aplicación completa y de arquitectura.
+- **307 tests**: unitarios (dominio y servicios), de capa (`@WebMvcTest`, `@DataJpaTest`), de integración con la aplicación completa y de arquitectura.
 - **La arquitectura también se prueba** (ArchUnit): `domain` solo puede depender de sí mismo y del JDK; `application`, además, de `domain`. Un `import` de Spring o de `infrastructure` en el núcleo rompe el build.
 - La base de datos de los tests es un **PostgreSQL real** en Docker (Testcontainers), no H2.
 - Gemini se sustituye por un servidor HTTP falso o un mock.
@@ -168,9 +169,10 @@ Esta es la parte más importante del proyecto. Audité el backend original de mi
 **v2.**
 - El dueño sale del `sub` del JWT validado. Ningún DTO de entrada tiene campo `userId`; si el cliente lo envía, se ignora.
 - El filtro está en la propia consulta: `findByIdAndUserId`, `deleteByIdAndUserId`. No hay método para leer una entrada sin indicar su dueño.
+- Al editar, primero se comprueba que la entrada es del usuario del token y solo después se guarda. Guardar con un id existente sobrescribe esa fila, así que sin esa comprobación un usuario podría **quedarse con la entrada de otro**.
 - Una entrada ajena responde **404, igual que una inexistente**, para no revelar que existe.
 - Identificadores UUID.
-- Tests: `JournalEntryFlowIntegrationTest` (dos usuarios reales: uno no puede ver, listar, borrar ni crear a nombre del otro) y `AdviceFlowIntegrationTest` (a la IA solo llegan entradas del usuario que llama).
+- Tests: `JournalEntryFlowIntegrationTest` (dos usuarios reales: uno no puede ver, listar, editar, borrar ni crear a nombre del otro) y `AdviceFlowIntegrationTest` (a la IA solo llegan entradas del usuario que llama).
 
 ### API2 · Autenticación rota
 
@@ -243,11 +245,12 @@ Prefiero dejarlas escritas a que parezca que no las he visto:
 - **Las notas se guardan sin cifrar** en la base de datos.
 - **La defensa contra *prompt injection* es parcial.** Por eso la respuesta de la IA solo se muestra, nunca se ejecuta ni se usa para tomar decisiones.
 - **Fechas en UTC.** "Hoy" es el día UTC; la racha se calcula sobre 90 días como máximo.
-- No se pueden editar entradas ni borrar la cuenta (pendiente; borrar la cuenta importa por el RGPD).
+- No se puede borrar la cuenta (pendiente; importa por el RGPD).
+- Al editar una entrada, la comprobación de dueño y el guardado no van en una misma transacción: si la entrada se borra justo entre ambos pasos, el guardado la volvería a crear (siempre para su dueño, nunca para otro usuario).
 
 ## Próximos pasos
 
-- Edición de entradas, borrado de cuenta y filtros en el listado.
+- Borrado de cuenta y filtros en el listado.
 - Cliente Android.
 
 ## Licencia

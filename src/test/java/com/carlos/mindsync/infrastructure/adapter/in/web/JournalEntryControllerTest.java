@@ -4,6 +4,7 @@ import com.carlos.mindsync.application.port.in.CreateEntryUseCase;
 import com.carlos.mindsync.application.port.in.DeleteEntryUseCase;
 import com.carlos.mindsync.application.port.in.GetEntryUseCase;
 import com.carlos.mindsync.application.port.in.ListEntriesUseCase;
+import com.carlos.mindsync.application.port.in.UpdateEntryUseCase;
 import com.carlos.mindsync.domain.exception.InvalidJournalEntryException;
 import com.carlos.mindsync.domain.exception.JournalEntryNotFoundException;
 import com.carlos.mindsync.domain.model.Emotion;
@@ -40,6 +41,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -69,6 +71,8 @@ class JournalEntryControllerTest {
 	@MockitoBean
 	private DeleteEntryUseCase deleteEntry;
 	@MockitoBean
+	private UpdateEntryUseCase updateEntry;
+	@MockitoBean
 	private JwtDecoder jwtDecoder;
 
 	private static RequestPostProcessor asAna() {
@@ -79,6 +83,10 @@ class JournalEntryControllerTest {
 		return post("/api/entries").contentType(MediaType.APPLICATION_JSON).content(body);
 	}
 
+	private static MockHttpServletRequestBuilder putEntry(String body) {
+		return put("/api/entries/" + ENTRY.id()).contentType(MediaType.APPLICATION_JSON).content(body);
+	}
+
 	// ---- authentication
 
 	@Test
@@ -87,8 +95,9 @@ class JournalEntryControllerTest {
 		mockMvc.perform(get("/api/entries")).andExpect(status().isUnauthorized());
 		mockMvc.perform(get("/api/entries/" + ENTRY.id())).andExpect(status().isUnauthorized());
 		mockMvc.perform(delete("/api/entries/" + ENTRY.id())).andExpect(status().isUnauthorized());
+		mockMvc.perform(putEntry(VALID_BODY)).andExpect(status().isUnauthorized());
 
-		verifyNoInteractions(createEntry, listEntries, getEntry, deleteEntry);
+		verifyNoInteractions(createEntry, listEntries, getEntry, updateEntry, deleteEntry);
 	}
 
 	// ---- create
@@ -241,6 +250,58 @@ class JournalEntryControllerTest {
 		mockMvc.perform(get("/api/entries/not-a-uuid").with(asAna())).andExpect(status().isBadRequest());
 
 		verifyNoInteractions(getEntry);
+	}
+
+	// ---- update
+
+	@Test
+	void update_returns200WithTheUpdatedEntry_usingTheTokenOwnerAndThePathId() throws Exception {
+		when(updateEntry.update(any(), any())).thenReturn(ENTRY);
+		String body = """
+				{"userId":"%s","id":"%s","date":"2026-03-10","energy":6,"emotion":"CALM","notes":"invented note"}"""
+				.formatted(SOMEONE_ELSE, SOMEONE_ELSE);
+
+		mockMvc.perform(putEntry(body).param("userId", SOMEONE_ELSE.toString()).with(asAna()))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(ENTRY.id().toString()))
+				.andExpect(jsonPath("$.notes").value("invented note"))
+				.andExpect(jsonPath("$.userId").doesNotExist());
+
+		// The id comes from the path and the owner from the token; both are ignored if sent in the body.
+		ArgumentCaptor<CreateEntryUseCase.Command> data = ArgumentCaptor.forClass(CreateEntryUseCase.Command.class);
+		verify(updateEntry).update(org.mockito.ArgumentMatchers.eq(ENTRY.id()), data.capture());
+		assertThat(data.getValue().userId()).isEqualTo(ANA);
+		assertThat(data.getValue().energy()).isEqualTo(6);
+	}
+
+	@Test
+	void update_missingOrForeignEntry_returns404() throws Exception {
+		when(updateEntry.update(any(), any())).thenThrow(new JournalEntryNotFoundException());
+
+		mockMvc.perform(putEntry(VALID_BODY).with(asAna()))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.detail").value("journal entry not found"));
+	}
+
+	@ParameterizedTest
+	@ValueSource(strings = {
+			"{\"energy\":6,\"emotion\":\"CALM\"}",
+			"{\"date\":\"2026-03-10\",\"energy\":11,\"emotion\":\"CALM\"}",
+			"{\"date\":\"2026-03-10\",\"energy\":6,\"emotion\":\"HUNGRY\"}",
+			"{not json",
+			"" })
+	void update_invalidBody_returns400_andUseCaseIsNotCalled(String body) throws Exception {
+		mockMvc.perform(putEntry(body).with(asAna())).andExpect(status().isBadRequest());
+
+		verifyNoInteractions(updateEntry);
+	}
+
+	@Test
+	void update_malformedId_returns400() throws Exception {
+		mockMvc.perform(put("/api/entries/not-a-uuid").contentType(MediaType.APPLICATION_JSON).content(VALID_BODY)
+				.with(asAna())).andExpect(status().isBadRequest());
+
+		verifyNoInteractions(updateEntry);
 	}
 
 	// ---- delete
