@@ -42,4 +42,9 @@ class UserPersistenceAdapter implements UserRepositoryPort {
 	public boolean existsByEmail(String email) {
 		return repository.existsByEmail(email);
 	}
+
+	@Override
+	public boolean deleteById(UUID id) {
+		return repository.removeById(id) > 0;
+	}
 }

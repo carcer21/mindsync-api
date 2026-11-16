@@ -14,4 +14,7 @@ public interface UserRepositoryPort {
 	Optional<User> findByEmail(String email);
 
 	boolean existsByEmail(String email);
+
+	// Also removes everything the user owns. Returns true if something was deleted.
+	boolean deleteById(UUID id);
 }

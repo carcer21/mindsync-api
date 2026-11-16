@@ -109,6 +109,7 @@ docker compose up -d
 | `POST` | `/api/auth/register` | No | Crear cuenta |
 | `POST` | `/api/auth/login` | No | Iniciar sesión; devuelve un JWT (caduca a los 30 min) |
 | `GET` | `/api/users/me` | Sí | Mi perfil |
+| `DELETE` | `/api/users/me` | Sí | Borrar mi cuenta y todo mi diario (definitivo) |
 | `POST` | `/api/entries` | Sí | Crear una entrada del diario |
 | `GET` | `/api/entries?page=0&size=20` | Sí | Mis entradas, de la más reciente a la más antigua |
 | `GET` | `/api/entries/{id}` | Sí | Una de mis entradas |
@@ -144,7 +145,7 @@ Login y registro admiten 10 peticiones por minuto y por IP; el consejo de IA, 5 
 ./mvnw verify
 ```
 
-- **307 tests**: unitarios (dominio y servicios), de capa (`@WebMvcTest`, `@DataJpaTest`), de integración con la aplicación completa y de arquitectura.
+- **317 tests**: unitarios (dominio y servicios), de capa (`@WebMvcTest`, `@DataJpaTest`), de integración con la aplicación completa y de arquitectura.
 - **La arquitectura también se prueba** (ArchUnit): `domain` solo puede depender de sí mismo y del JDK; `application`, además, de `domain`. Un `import` de Spring o de `infrastructure` en el núcleo rompe el build.
 - La base de datos de los tests es un **PostgreSQL real** en Docker (Testcontainers), no H2.
 - Gemini se sustituye por un servidor HTTP falso o un mock.
@@ -208,7 +209,9 @@ Esta es la parte más importante del proyecto. Audité el backend original de mi
 
 **v1.** Cualquiera podía llamar a `GET /api/usuarios` (lista de todos los usuarios, con sus contraseñas), `PUT /api/usuarios/{id}` y `DELETE /api/usuarios/{id}` sobre cualquier cuenta.
 
-**v2.** Esas operaciones no existen. Solo hay `GET /api/users/me`, que por construcción solo puede devolver al usuario del token.
+**v2.** Esas operaciones no existen. Solo hay `GET /api/users/me` y `DELETE /api/users/me`, que por construcción solo pueden actuar sobre el usuario del token: no hay ninguna ruta `/api/users/{id}`.
+
+Borrar la cuenta elimina de verdad al usuario, sus entradas y sus etiquetas (`ON DELETE CASCADE` en la base de datos, en una sola operación): es el derecho de supresión del RGPD. Un test comprueba que no queda ninguna fila y que los datos de los demás usuarios siguen intactos.
 
 ### API8 · Configuración de seguridad incorrecta
 
@@ -240,17 +243,18 @@ Esta es la parte más importante del proyecto. Audité el backend original de mi
 Prefiero dejarlas escritas a que parezca que no las he visto:
 
 - **El límite de peticiones es sencillo y vive en memoria.** Los contadores se pierden al reiniciar y no se comparten entre instancias: con más de una haría falta Redis o un gateway. Detrás de un proxy inverso todos los clientes llegarían con la misma IP (habría que configurar los proxies de confianza). Al ser de ventana fija permite una ráfaga de hasta el doble justo en el cambio de ventana. Y al contar por IP no frena un ataque repartido entre muchas IP contra una misma cuenta.
-- **Sin refresh token ni revocación.** Un token robado vale hasta que caduca (30 min).
+- **Sin refresh token ni revocación.** Un token robado vale hasta que caduca (30 min). Lo mismo pasa con el token de una cuenta borrada: sigue siendo válido, pero ya no hay datos detrás y cualquier intento de leer o escribir responde vacío o `404`.
+- **Borrar la cuenta no pide la contraseña otra vez.** Con un token robado se podría borrar la cuenta. Lo correcto sería volver a autenticar antes de una acción destructiva.
 - **Swagger UI y `/v3/api-docs` son públicos.** Cómodo para una demo; en producción habría que desactivarlos (`springdoc.api-docs.enabled=false`, `springdoc.swagger-ui.enabled=false`) o protegerlos.
 - **Las notas se guardan sin cifrar** en la base de datos.
 - **La defensa contra *prompt injection* es parcial.** Por eso la respuesta de la IA solo se muestra, nunca se ejecuta ni se usa para tomar decisiones.
 - **Fechas en UTC.** "Hoy" es el día UTC; la racha se calcula sobre 90 días como máximo.
-- No se puede borrar la cuenta (pendiente; importa por el RGPD).
 - Al editar una entrada, la comprobación de dueño y el guardado no van en una misma transacción: si la entrada se borra justo entre ambos pasos, el guardado la volvería a crear (siempre para su dueño, nunca para otro usuario).
 
 ## Próximos pasos
 
-- Borrado de cuenta y filtros en el listado.
+- Pedir la contraseña antes de borrar la cuenta.
+- Filtros en el listado.
 - Cliente Android.
 
 ## Licencia

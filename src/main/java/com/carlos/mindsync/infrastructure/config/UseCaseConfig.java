@@ -1,6 +1,7 @@
 package com.carlos.mindsync.infrastructure.config;
 
 import com.carlos.mindsync.application.port.in.CreateEntryUseCase;
+import com.carlos.mindsync.application.port.in.DeleteAccountUseCase;
 import com.carlos.mindsync.application.port.in.DeleteEntryUseCase;
 import com.carlos.mindsync.application.port.in.GetAdviceUseCase;
 import com.carlos.mindsync.application.port.in.GetEntryUseCase;
@@ -16,6 +17,7 @@ import com.carlos.mindsync.application.port.out.PasswordHasherPort;
 import com.carlos.mindsync.application.port.out.TokenProviderPort;
 import com.carlos.mindsync.application.port.out.UserRepositoryPort;
 import com.carlos.mindsync.application.service.CreateEntryService;
+import com.carlos.mindsync.application.service.DeleteAccountService;
 import com.carlos.mindsync.application.service.DeleteEntryService;
 import com.carlos.mindsync.application.service.GetAdviceService;
 import com.carlos.mindsync.application.service.GetEntryService;
@@ -42,6 +44,11 @@ class UseCaseConfig {
 	@Bean
 	GetUserUseCase getUserUseCase(UserRepositoryPort users) {
 		return new GetUserService(users);
+	}
+
+	@Bean
+	DeleteAccountUseCase deleteAccountUseCase(UserRepositoryPort users) {
+		return new DeleteAccountService(users);
 	}
 
 	@Bean

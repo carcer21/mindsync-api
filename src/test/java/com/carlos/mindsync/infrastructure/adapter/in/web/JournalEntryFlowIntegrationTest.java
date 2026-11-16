@@ -41,7 +41,7 @@ class JournalEntryFlowIntegrationTest {
 	@Autowired
 	private JdbcTemplate jdbc;
 
-	private record Session(String userId, String token) {
+	private record Session(String userId, String token, String email) {
 	}
 
 	// ---- happy path
@@ -255,6 +255,57 @@ class JournalEntryFlowIntegrationTest {
 				.andExpect(jsonPath("$.totalElements").value(0));
 	}
 
+	// ---- account deletion (GDPR right to erasure)
+
+	@Test
+	void deleteAccount_erasesTheUserTheirEntriesAndTags_andNobodyElses() throws Exception {
+		Session ana = newUser("Ana");
+		Session ben = newUser("Ben");
+		String anaEntry = createAndGetId(ana, entryJson(TODAY, 2, "ANXIETY", "private invented note", "\"health\",\"work\""));
+		createEntry(ana, entryJson(TODAY.minusDays(1), 4, "SADNESS", null, "\"health\""));
+		String benEntry = createAndGetId(ben, entryJson(TODAY, 9, "JOY", null, "\"rest\""));
+
+		mockMvc.perform(delete("/api/users/me").header("Authorization", bearer(ana)))
+				.andExpect(status().isNoContent());
+
+		assertThat(jdbc.queryForObject("select count(*) from users where id = ?::uuid", Integer.class, ana.userId()))
+				.isZero();
+		assertThat(jdbc.queryForObject("select count(*) from journal_entries where user_id = ?::uuid", Integer.class,
+				ana.userId())).isZero();
+		assertThat(tagRows(anaEntry)).isZero();
+		// Ben is untouched.
+		assertThat(entryRows(benEntry)).isEqualTo(1);
+		assertThat(tagRows(benEntry)).isEqualTo(1);
+		mockMvc.perform(get("/api/users/me").header("Authorization", bearer(ben))).andExpect(status().isOk());
+	}
+
+	@Test
+	void deleteAccount_theOldTokenReachesNothing_andTheUserCannotLogInAgain() throws Exception {
+		Session ana = newUser("Ana");
+		createEntry(ana, entryJson(TODAY, 2, "ANXIETY", "private invented note", ""));
+		mockMvc.perform(delete("/api/users/me").header("Authorization", bearer(ana)))
+				.andExpect(status().isNoContent());
+
+		// The token is still correctly signed and not expired, but there is nothing behind it.
+		mockMvc.perform(get("/api/users/me").header("Authorization", bearer(ana))).andExpect(status().isNotFound());
+		mockMvc.perform(get("/api/entries").header("Authorization", bearer(ana)))
+				.andExpect(jsonPath("$.totalElements").value(0));
+		createEntry(ana, entryJson(TODAY, 5, "CALM", null, "")).andExpect(status().isNotFound());
+		mockMvc.perform(delete("/api/users/me").header("Authorization", bearer(ana)))
+				.andExpect(status().isNotFound());
+		assertThat(jdbc.queryForObject("select count(*) from journal_entries where user_id = ?::uuid", Integer.class,
+				ana.userId())).isZero();
+
+		mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+						.content("{\"email\":\"%s\",\"password\":\"%s\"}".formatted(ana.email(), PASSWORD)))
+				.andExpect(status().isUnauthorized());
+	}
+
+	@Test
+	void deleteAccount_withoutToken_returns401() throws Exception {
+		mockMvc.perform(delete("/api/users/me")).andExpect(status().isUnauthorized());
+	}
+
 	// ---- other rules through the whole stack
 
 	@Test
@@ -293,7 +344,7 @@ class JournalEntryFlowIntegrationTest {
 		String loginBody = mockMvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
 						.content("{\"email\":\"%s\",\"password\":\"%s\"}".formatted(email, PASSWORD)))
 				.andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
-		return new Session(JsonPath.read(registerBody, "$.id"), JsonPath.read(loginBody, "$.accessToken"));
+		return new Session(JsonPath.read(registerBody, "$.id"), JsonPath.read(loginBody, "$.accessToken"), email);
 	}
 
 	private static String bearer(Session session) {

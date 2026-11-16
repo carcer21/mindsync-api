@@ -1,8 +1,10 @@
 package com.carlos.mindsync.infrastructure.adapter.out.persistence;
 
 import com.carlos.mindsync.application.port.out.JournalEntryRepositoryPort;
+import com.carlos.mindsync.domain.exception.UserNotFoundException;
 import com.carlos.mindsync.domain.model.JournalEntry;
 import com.carlos.mindsync.domain.model.Page;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
@@ -26,7 +28,13 @@ class JournalEntryPersistenceAdapter implements JournalEntryRepositoryPort {
 
 	@Override
 	public JournalEntry save(JournalEntry entry) {
-		return JournalEntryMapper.toDomain(repository.saveAndFlush(JournalEntryMapper.toEntity(entry)));
+		try {
+			return JournalEntryMapper.toDomain(repository.saveAndFlush(JournalEntryMapper.toEntity(entry)));
+		} catch (DataIntegrityViolationException e) {
+			// The domain has already validated the data, so the only constraint left to fail is the foreign key:
+			// the account was deleted, but its token has not expired yet.
+			throw new UserNotFoundException();
+		}
 	}
 
 	@Override

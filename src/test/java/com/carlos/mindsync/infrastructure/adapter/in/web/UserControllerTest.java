@@ -1,5 +1,6 @@
 package com.carlos.mindsync.infrastructure.adapter.in.web;
 
+import com.carlos.mindsync.application.port.in.DeleteAccountUseCase;
 import com.carlos.mindsync.application.port.in.GetUserUseCase;
 import com.carlos.mindsync.application.port.in.LoginUseCase;
 import com.carlos.mindsync.application.port.in.RegisterUserUseCase;
@@ -23,7 +24,12 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.mockito.ArgumentMatchers.any;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
+import static org.mockito.Mockito.doThrow;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -38,6 +44,8 @@ class UserControllerTest {
 	private MockMvc mockMvc;
 	@MockitoBean
 	private GetUserUseCase getUser;
+	@MockitoBean
+	private DeleteAccountUseCase deleteAccount;
 	@MockitoBean
 	private RegisterUserUseCase registerUser;
 	@MockitoBean
@@ -88,11 +96,53 @@ class UserControllerTest {
 	}
 
 	@Test
-	void me_isNotReachableWithPostOrDelete() throws Exception {
-		mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete("/api/users/me")
-						.with(jwt().jwt(token -> token.subject(ANA.id().toString()))))
+	void me_isNotReachableWithPostOrPut() throws Exception {
+		mockMvc.perform(post("/api/users/me").with(jwt().jwt(token -> token.subject(ANA.id().toString()))))
+				.andExpect(status().isMethodNotAllowed());
+		mockMvc.perform(put("/api/users/me").with(jwt().jwt(token -> token.subject(ANA.id().toString()))))
 				.andExpect(status().isMethodNotAllowed());
 
 		verify(getUser, never()).getById(any());
+		verifyNoInteractions(deleteAccount);
+	}
+
+	// ---- delete my account
+
+	@Test
+	void deleteMe_withoutToken_returns401_andNothingIsDeleted() throws Exception {
+		mockMvc.perform(delete("/api/users/me")).andExpect(status().isUnauthorized());
+
+		verifyNoInteractions(deleteAccount);
+	}
+
+	@Test
+	void deleteMe_returns204_deletingOnlyTheTokenOwner() throws Exception {
+		UUID someoneElse = UUID.randomUUID();
+
+		mockMvc.perform(delete("/api/users/me").param("id", someoneElse.toString())
+						.header("X-User-Id", someoneElse.toString())
+						.with(jwt().jwt(token -> token.subject(ANA.id().toString()))))
+				.andExpect(status().isNoContent())
+				.andExpect(content().string(""));
+
+		verify(deleteAccount).delete(ANA.id());
+		verify(deleteAccount, never()).delete(someoneElse);
+	}
+
+	@Test
+	void deleteMe_whenTheAccountIsAlreadyGone_returns404() throws Exception {
+		doThrow(new UserNotFoundException()).when(deleteAccount).delete(ANA.id());
+
+		mockMvc.perform(delete("/api/users/me").with(jwt().jwt(token -> token.subject(ANA.id().toString()))))
+				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void thereIsNoEndpointToDeleteAUserById() throws Exception {
+		mockMvc.perform(delete("/api/users/" + UUID.randomUUID())
+						.with(jwt().jwt(token -> token.subject(ANA.id().toString()))))
+				.andExpect(status().isNotFound());
+
+		verifyNoInteractions(deleteAccount);
 	}
 }

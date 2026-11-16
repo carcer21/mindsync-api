@@ -1,5 +1,6 @@
 package com.carlos.mindsync.infrastructure.adapter.in.web;
 
+import com.carlos.mindsync.application.port.in.DeleteAccountUseCase;
 import com.carlos.mindsync.application.port.in.GetUserUseCase;
 import com.carlos.mindsync.application.port.in.LoginUseCase;
 import com.carlos.mindsync.application.port.in.RegisterUserUseCase;
@@ -45,6 +46,8 @@ class AuthControllerTest {
 	private LoginUseCase login;
 	@MockitoBean
 	private GetUserUseCase getUser;
+	@MockitoBean
+	private DeleteAccountUseCase deleteAccount;
 	// Required by the resource-server configuration; the real one is tested in SecurityConfigTest.
 	@MockitoBean
 	private JwtDecoder jwtDecoder;

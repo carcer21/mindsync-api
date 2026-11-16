@@ -51,6 +51,15 @@ class UserPersistenceAdapterTest {
 	}
 
 	@Test
+	void deleteById_removesTheUser_andReportsWhetherSomethingWasDeleted() {
+		User saved = adapter.save(User.register("Eli", "eli@example.com", "hash-6"));
+
+		assertThat(adapter.deleteById(saved.id())).isTrue();
+		assertThat(adapter.findById(saved.id())).isEmpty();
+		assertThat(adapter.deleteById(saved.id())).isFalse();
+	}
+
+	@Test
 	void save_duplicateEmail_isTranslatedToDomainException() {
 		adapter.save(User.register("Cleo", "cleo@example.com", "hash-3"));
 
